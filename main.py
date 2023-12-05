@@ -3,15 +3,10 @@ import time
 import pygame
 import numpy as np
 import csv
-from fixation_analysis import do_analysis
 
-# Initialize Pygame
 pygame.init()
 
-# Constants for the display
-# write these out as metadata in the csv file
 WIDTH, HEIGHT = 1440, 900
-
 WHITE = (255, 255, 255)
 
 # Initialize Pygame window
@@ -21,6 +16,25 @@ pygame.display.set_caption("Eye Gaze Plot")
 # Lists to store gaze data
 right_gaze_data_with_time = []
 left_gaze_data_with_time = []
+
+
+def load_and_scale_background(filename, max_width, max_height):
+    image = pygame.image.load(filename)
+    image_width, image_height = image.get_size()
+
+    # Calculate the scaled dimensions while maintaining aspect ratio
+    if image_width > max_width or image_height > max_height:
+        aspect_ratio = image_width / image_height
+        if image_width > image_height:
+            new_width = max_width
+            new_height = int(max_width / aspect_ratio)
+        else:
+            new_height = max_height
+            new_width = int(max_height * aspect_ratio)
+        image = pygame.transform.scale(image, (new_width, new_height))
+
+    return image
+
 
 def gaze_data_callback(gaze_data):
     right_x, right_y = gaze_data['right_gaze_point_on_display_area']
@@ -48,8 +62,9 @@ def save_gaze_data_to_csv(filename, right_gaze_data, left_gaze_data):
             csv_writer.writerow([right_timestamp, right_x, right_y, left_x, left_y])
 
 
-
 def main():
+    file_name = "./sample.png"
+    background_image = load_and_scale_background(file_name, WIDTH, HEIGHT)
     found_eyetrackers = tr.find_all_eyetrackers()
     my_eyetracker = found_eyetrackers[0]
     print("Address: " + my_eyetracker.address)
@@ -63,12 +78,43 @@ def main():
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                running = False
+                pygame.image.save(screen, 'screenshot_1.png')
+                pygame.display.flip()
+                screen.fill(WHITE)
 
-        # Update the display
+                for (_, rx, ry), (_, lx, ly) in zip(right_gaze_data_with_time, left_gaze_data_with_time):
+                    if not np.isnan(rx) and not np.isnan(ry) and not np.isnan(lx) and not np.isnan(ly):
+                        x = (rx + lx) / 2
+                        y = (ry + ly) / 2
+                        pygame.draw.circle(screen, (0, 0, 0), (int(x * WIDTH), int(y * HEIGHT)), 2)
+
+                pygame.image.save(screen, 'screenshot_2.png')
+                running = False
+                break
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                pygame.image.save(screen, 'screenshot_1.png')
+                pygame.display.flip()
+                screen.fill(WHITE)
+
+                for (_, rx, ry), (_, lx, ly) in zip(right_gaze_data_with_time, left_gaze_data_with_time):
+                    if not np.isnan(rx) and not np.isnan(ry) and not np.isnan(lx) and not np.isnan(ly):
+                        x = (rx + lx) / 2
+                        y = (ry + ly) / 2
+                        pygame.draw.circle(screen, (0, 0, 0), (int(x * WIDTH), int(y * HEIGHT)), 2)
+
+                pygame.image.save(screen, 'screenshot_2.png')
+                running = False
+                break
+
+        # Clear the screen with white
         screen.fill(WHITE)
+
+        # Calculate the position to center the background image
+        bg_x = (WIDTH - background_image.get_width()) // 2
+        bg_y = (HEIGHT - background_image.get_height()) // 2
+
+        # Draw the centered background image
+        screen.blit(background_image, (bg_x, bg_y))
 
         # Draw gaze points
         for (_, rx, ry), (_, lx, ly) in zip(right_gaze_data_with_time, left_gaze_data_with_time):
@@ -76,45 +122,12 @@ def main():
                 x = (rx + lx) / 2
                 y = (ry + ly) / 2
                 pygame.draw.circle(screen, (0, 0, 0), (int(x * WIDTH), int(y * HEIGHT)), 2)
-        # for _, x, y in left_gaze_data_with_time:
-        #     if not np.isnan(x) and not np.isnan(y):
-        #         pygame.draw.circle(screen, (0, 0, 255), (int(x * WIDTH), int(y * HEIGHT)), 2)
-
         pygame.display.flip()
-        # time.sleep(0.01)  # Limit the frame rate
 
     my_eyetracker.unsubscribe_from(tr.EYETRACKER_GAZE_DATA, gaze_data_callback)
-
     save_gaze_data_to_csv('gaze_data.csv', right_gaze_data_with_time, left_gaze_data_with_time)
-    fixation_data = do_analysis('gaze_data.csv')
-
-    # Prepare to display the statistics on the screen
-    font = pygame.font.Font(None, 36)  # Use a default font and size 36
-
-    # Render the statistics to display
-    fixation_text = [
-        f'Number of fixations: {fixation_data["number_of_fixations"]}',
-        f'Mean fixation time: {fixation_data["mean_fixation_time"]}',
-        f'SD fixation time: {fixation_data["sd_fixation_time"]}'
-    ]
-
-    # Clear the screen and display the fixation data
-    screen.fill(WHITE)
-    for i, text in enumerate(fixation_text):
-        rendered_text = font.render(text, True, (0, 0, 0))
-        screen.blit(rendered_text, (50, 50 + i * 40))  # Adjust position as needed
-
-    pygame.display.flip()
-
-    # Wait for the user to press the spacebar again to quit
-    waiting_for_quit = True
-    while waiting_for_quit:
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                waiting_for_quit = False
-
-    pygame.image.save(screen, 'screenshot.png')
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
