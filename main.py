@@ -1,10 +1,9 @@
+import sys
 import tobii_research as tr
-import tkinter as tk
-from tkinter import filedialog
-import time
 import pygame
 import numpy as np
 import csv
+import time
 
 pygame.init()
 
@@ -38,17 +37,6 @@ def load_and_scale_background(filename, max_width, max_height):
     return image
 
 
-def choose_background_image():
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
-
-    file_path = filedialog.askopenfilename(
-        title="Choose a background image",
-        filetypes=[("Image files", "*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff")]
-    )
-
-    return file_path
-
 
 def gaze_data_callback(gaze_data):
     right_x, right_y = gaze_data['right_gaze_point_on_display_area']
@@ -78,10 +66,13 @@ def save_gaze_data_to_csv(filename, right_gaze_data, left_gaze_data):
 
 
 def main():
-    file_name = choose_background_image()
+    if len(sys.argv) < 2:
+        print("Usage: python script.py <path_to_background_image>")
+        sys.exit(1)
 
-    # file_name = "./sample.png"
+    file_name = sys.argv[1]
     background_image = load_and_scale_background(file_name, WIDTH, HEIGHT)
+
     found_eyetrackers = tr.find_all_eyetrackers()
     my_eyetracker = found_eyetrackers[0]
     print("Address: " + my_eyetracker.address)
